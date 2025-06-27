@@ -1,0 +1,44 @@
+databricks-cli
+
+# Databricks GenAI 앱 개발을 위한 패키지 최종 정리
+# 1. 💻 기본적으로 포함된 핵심 패키지 (설치 불필요)
+# 데이터 처리의 기본.
+pyspark
+pandas
+numpy
+# 일반적인 머신러닝 라이브러리.
+scikit-learn
+# tensorflow
+# pytorch
+
+# LangChain의 핵심 기능
+langchain
+langchain-core
+langchain-community
+
+# 2. 🧱 Databricks 네이티브 기능 연동 패키지 (핵심)
+databricks-vectorsearch
+# mlflow
+
+# 3. 📄 데이터 소스별 추가 패키지 (필요시 설치)
+# RAG 앱이 읽어야 할 데이터의 종류에 따라 필요한 패키지입니다. 이들은 기본 런타임에 포함되지 않은 경우가 많아 필요에 따라 추가로 설치해야 합니다.
+
+# PDF 문서 로드: 
+pypdf
+
+# 웹 페이지 크롤링: 
+beautifulsoup4
+
+# MS Office 문서 등: 
+unstructured
+
+# 4. 🌐 외부 서비스 연동 패키지 (선택 사항)
+# 만약 Databricks의 모델 서빙 기능 대신, OpenAI나 Google의 API를 직접 호출하고 싶을 때만 설치합니다.
+
+# OpenAI API 직접 호출 시: 
+openai
+langchain-openai
+
+# Google Gemini API 직접 호출 시: 
+google-generativeai
+langchain-google-genai
