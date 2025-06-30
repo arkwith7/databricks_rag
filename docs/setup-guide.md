@@ -1,406 +1,302 @@
-# Databricks RAG 시스템 설정 가이드
+# Databricks Text-to-SQL RAG 시스템 설치 가이드
 
-## 📋 개요
+이 가이드는 Databricks Text-to-SQL RAG 시스템을 설정하고 실행하는 단계별 방법을 설명합니다.
 
-이 가이드는 Databricks RAG 시스템을 처음부터 설정하는 방법을 단계별로 안내합니다. VS Code Databricks Extension을 활용한 현대적인 개발 환경 구축에 중점을 둡니다.
+## 🎯 시스템 요구사항
 
-## 🎯 전제 조건
+### 필수 환경
 
-### 필수 요구사항
+- **Databricks Workspace** (Community Edition 또는 그 이상)
+- **Python 3.8+** 환경
+- **Spark 3.4+** (Databricks 런타임에 포함)
+- **Databricks Runtime 13.0+** 권장
 
-#### 1. Databricks 계정 및 워크스페이스
-- **Databricks 워크스페이스**: 유료 또는 14일 평가판 계정
-- **클러스터**: DBR (Databricks Runtime) 13.0 이상
-- **권한**: 클러스터 생성/관리, Vector Search, Model Serving 권한
+### 권한 및 액세스
 
-#### 2. 로컬 개발 환경
-- **VS Code**: 최신 버전 (1.80+)
-- **Python**: 3.8 이상
-- **Git**: 버전 관리용 (선택사항)
+- Databricks Foundation Models 액세스 권한
+- Delta Lake 테이블 생성 권한
+- 클러스터 생성 및 관리 권한
 
-#### 3. 시스템 요구사항
-- **RAM**: 최소 8GB, 권장 16GB+
-- **저장공간**: 최소 5GB 여유 공간
-- **네트워크**: 안정적인 인터넷 연결
+## 📋 단계별 설치 가이드
 
----
+### 1단계: Databricks 환경 준비
 
-## 🚀 1단계: VS Code 및 확장 설치
-
-### VS Code 설치
+#### 1.1 Databricks Workspace 접속
 
 ```bash
-# Windows - Chocolatey 사용 시
-choco install vscode
+# Databricks CLI 설치 (로컬 환경)
+pip install databricks-cli
 
-# macOS - Homebrew 사용 시  
-brew install --cask visual-studio-code
-
-# Linux - Snap 사용 시
-sudo snap install code --classic
+# 인증 설정
+databricks configure --token
 ```
 
-### Databricks Extension 설치
+#### 1.2 클러스터 생성
 
-#### 방법 1: VS Code 마켓플레이스
-1. VS Code 실행
-2. 좌측 확장(Extensions) 탭 클릭 (Ctrl+Shift+X)
-3. "Databricks" 검색
-4. **Microsoft** 제작 "Databricks" 확장 설치
+- **Runtime**: DBR 13.3 LTS ML 이상 권장
+- **Node Type**: Standard_DS3_v2 이상 (최소 14GB RAM)
+- **Workers**: 1-2개 (테스트용)
 
-#### 방법 2: 명령줄
-```bash
-code --install-extension databricks.databricks
-```
-
-#### 방법 3: 수동 설치
-1. [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=databricks.databricks) 방문
-2. "Install" 버튼 클릭
-3. VS Code에서 설치 완료
-
-### 설치 확인
-
-확장이 정상적으로 설치되었는지 확인:
-
-1. **Ctrl+Shift+P** 실행
-2. "Databricks" 입력
-3. Databricks 관련 명령어들이 표시되면 성공
-
----
-
-## 🔗 2단계: Databricks 워크스페이스 연결
-
-### Personal Access Token 생성
-
-#### Databricks 워크스페이스에서:
-
-1. **Databricks 워크스페이스** 로그인
-2. 우상단 **사용자 아이콘** 클릭
-3. **"User Settings"** 선택
-4. **"Developer"** 탭 → **"Access tokens"**
-5. **"Generate new token"** 클릭
-6. **토큰 이름** 입력 (예: "VS Code Development")
-7. **만료 기간** 설정 (90일 권장)
-8. **생성된 토큰 복사** (⚠️ 한 번만 표시됩니다!)
-
-### VS Code에서 워크스페이스 연결
-
-#### 방법 1: 명령 팔레트 사용
-1. **Ctrl+Shift+P** 실행
-2. **"Databricks: Configure Workspace"** 선택
-3. **Databricks URL** 입력
-   ```
-   https://your-workspace.cloud.databricks.com
-   ```
-4. **Personal Access Token** 붙여넣기
-
-#### 방법 2: 설정 파일 직접 편집
-VS Code에서 `settings.json` 열기:
-```json
-{
-    "databricks.workspaceUri": "https://your-workspace.cloud.databricks.com",
-    "databricks.authType": "pat",
-    "databricks.personalAccessToken": "your-token-here"
-}
-```
-
-### 연결 확인
-
-1. **VS Code 좌측 패널**에 **Databricks 아이콘** 표시 확인
-2. **클러스터 목록**이 표시되면 연결 성공
-3. 오류 발생 시 **문제 해결** 섹션 참조
-
----
-
-## ⚙️ 3단계: 클러스터 설정 및 연결
-
-### 클러스터 요구사항
-
-#### 권장 클러스터 설정:
-- **Databricks Runtime**: 13.3 LTS 이상
-- **Python Version**: 3.9+
-- **Node Type**: 
-  - **Driver**: i3.xlarge (4 cores, 30.5 GB)
-  - **Workers**: i3.large (2 cores, 15.25 GB) × 2개 이상
-- **Auto Termination**: 120분
-
-### 클러스터 생성 (Databricks UI)
-
-1. **Databricks 워크스페이스** → **"Compute"** 탭
-2. **"Create Cluster"** 클릭
-3. **클러스터 설정**:
-   ```
-   Cluster Name: rag-development
-   Cluster Mode: Standard
-   Databricks Runtime Version: 13.3 LTS (Scala 2.12, Spark 3.4.1)
-   Node Type: i3.xlarge (Driver), i3.large (Workers)
-   Workers: 2 (Min: 1, Max: 4)
-   ```
-4. **"Create Cluster"** 클릭
-
-### VS Code에서 클러스터 연결
-
-1. **VS Code 좌측 Databricks 패널** 확인
-2. **사용 가능한 클러스터 목록**에서 클러스터 선택
-3. **"Connect"** 버튼 클릭
-4. **상태바**에 클러스터명이 표시되면 연결 완료
-
-### 라이브러리 설치 (클러스터)
-
-RAG 시스템에 필요한 라이브러리들을 클러스터에 설치:
-
-#### Databricks UI에서:
-1. **클러스터 페이지** → **"Libraries"** 탭
-2. **"Install New"** → **"PyPI"**
-3. 다음 패키지들을 하나씩 설치:
-   ```
-   langchain
-   langchain-community
-   databricks-vectorsearch
-   pypdf
-   ```
-
-#### 또는 init script 사용:
-```bash
-#!/bin/bash
-pip install langchain langchain-community databricks-vectorsearch pypdf
-```
-
----
-
-## 📁 4단계: 프로젝트 폴더 구성
-
-### 권장 폴더 구조
-
-```
-databricks_rag/
-├── rag_app_on_vm.ipynb           # 메인 RAG 노트북
-├── text_to_sql_prompt_template.ipynb  # Text-to-SQL 모듈
-├── requirements.txt              # Python 의존성
-├── databricks.yml               # Databricks 설정 (선택)
-├── data/                        # 데이터 폴더
-│   ├── pdf/                     # PDF 문서들
-│   │   └── *.pdf               # 분석할 PDF 파일들
-│   └── processed_chunks.csv     # 처리된 청크 (자동 생성)
-├── docs/                        # 문서화
-│   ├── README.md
-│   ├── setup-guide.md
-│   └── *.md
-└── .vscode/                     # VS Code 설정
-    └── settings.json
-```
-
-### 프로젝트 초기화
-
-#### 1. 작업 폴더 생성
-```bash
-mkdir -p ~/Projects/databricks_rag
-cd ~/Projects/databricks_rag
-```
-
-#### 2. Git 초기화 (선택사항)
-```bash
-git init
-echo "*.log" > .gitignore
-echo "__pycache__/" >> .gitignore
-echo ".env" >> .gitignore
-```
-
-#### 3. 데이터 폴더 생성
-```bash
-mkdir -p data/pdf
-mkdir -p docs
-```
-
-#### 4. VS Code에서 폴더 열기
-```bash
-code .
-```
-
-### 노트북 파일 다운로드
-
-필요한 노트북 파일들을 프로젝트 폴더에 배치:
-
-1. **rag_app_on_vm.ipynb**: 메인 RAG 시스템
-2. **text_to_sql_prompt_template.ipynb**: Text-to-SQL 유틸리티
-
----
-
-## ✅ 5단계: 설정 검증
-
-### 기본 연결 테스트
-
-VS Code에서 새 노트북 생성 후 테스트:
+#### 1.3 Foundation Models 활성화
 
 ```python
-# 셀 1: 환경 확인
+# Databricks 워크스페이스에서 확인
+# Settings → Admin Console → Feature enablement → Foundation Models
+```
+
+### 2단계: 프로젝트 설정
+
+#### 2.1 저장소 클론
+
+```bash
+# GitHub에서 클론 (로컬 환경)
+git clone <repository-url>
+cd databricks_rag
+
+# 또는 Databricks Repos 사용
+# Workspace → Repos → Add Repo → GitHub URL
+```
+
+#### 2.2 필수 라이브러리 설치
+
+```python
+# Databricks 노트북에서 실행
+%pip install -r requirements.txt
+dbutils.library.restartPython()
+```
+
+### 3단계: 데이터 구축 및 환경 설정
+
+#### 3.1 첫 번째 노트북 실행
+
+```python
+# 01_databricks_setup_northwind.ipynb 열기 및 실행
+# 모든 셀을 순서대로 실행
+```
+
+**수행되는 작업:**
+- ✅ Spark 세션 초기화
+- ✅ Northwind 데이터베이스 스키마 생성
+- ✅ 8개 테이블 구축 (customers, products, orders 등)
+- ✅ 샘플 데이터 로드 및 검증
+- ✅ 기본 SQL 테스트
+
+#### 3.2 환경 검증
+
+```python
+# 노트북 마지막 셀에서 확인
+print("✅ 모든 설정이 완료되었습니다!")
+```
+
+### 4단계: LangChain Agent 구현
+
+#### 4.1 두 번째 노트북 실행
+
+```python
+# 02_langchain_agent_text_to_sql.ipynb 열기 및 실행
+```
+
+**구현되는 기능:**
+- 🤖 LangChain Agent 초기화
+- 🔧 Function Tools 구현 (4개)
+- 🌐 Databricks Foundation Models 연동
+- 🧪 테스트 및 데모 시스템
+
+#### 4.2 모델 연결 확인
+
+```python
+# 노트북에서 모델 상태 확인
+if model_manager.is_available:
+    print("✅ Foundation Models 연결 성공")
+else:
+    print("❌ 모델 연결 실패")
+```
+
+### 5단계: 시스템 테스트
+
+#### 5.1 자동 테스트 실행
+
+```python
+# 기본 테스트 스위트
+test_agent_with_examples()
+```
+
+#### 5.2 대화형 데모
+
+```python
+# 실시간 질의응답 테스트
+interactive_query_demo()
+```
+
+#### 5.3 고급 기능 테스트
+
+```python
+# 성능 분석 및 최적화 기능
+demonstrate_advanced_features()
+```
+
+## 🔧 고급 설정
+
+### 대안 AI 모델 설정
+
+#### OpenAI API 사용 (Databricks Models 대신)
+
+```python
+# 환경 변수 설정
 import os
-print("Databricks Runtime:", os.environ.get('DATABRICKS_RUNTIME_VERSION', 'Not Found'))
+os.environ["OPENAI_API_KEY"] = "your-api-key"
 
-# 셀 2: Spark 연결 테스트  
-from pyspark.sql import SparkSession
-spark = SparkSession.builder.appName("ConnectionTest").getOrCreate()
-print("Spark Version:", spark.version)
-
-# 셀 3: 간단한 SQL 테스트
-result = spark.sql("SELECT 1 as test").collect()
-print("SQL Test Result:", result[0]['test'])
-
-# 셀 4: Databricks 기능 테스트
-try:
-    catalog = spark.sql("SELECT current_catalog()").collect()[0][0]
-    schema = spark.sql("SELECT current_schema()").collect()[0][0]
-    print(f"Current Catalog: {catalog}")
-    print(f"Current Schema: {schema}")
-except Exception as e:
-    print(f"Catalog/Schema test failed: {e}")
+# 노트북에서 자동으로 대안 모델 사용
 ```
 
-### Vector Search 권한 확인
+#### 로컬 모델 사용
 
 ```python
-# Vector Search 접근 권한 테스트
-try:
-    from databricks.vector_search.client import VectorSearchClient
-    vsc = VectorSearchClient(disable_notice=True)
-    endpoints = vsc.list_endpoints()
-    print("✅ Vector Search 권한 있음")
-    print(f"사용 가능한 엔드포인트: {len(endpoints)}개")
-except Exception as e:
-    print(f"❌ Vector Search 권한 없음: {e}")
+# Hugging Face Transformers 등 사용 가능
+# 상세한 설정은 implementation-guide.md 참조
 ```
-
-### Model Serving 권한 확인
-
-```python
-# Foundation Model 접근 권한 테스트
-try:
-    from langchain_community.embeddings import DatabricksEmbeddings
-    embedding_model = DatabricksEmbeddings(endpoint="databricks-bge-large-en")
-    test_embedding = embedding_model.embed_query("test")
-    
-    if test_embedding and len(test_embedding) > 0:
-        print("✅ Model Serving 권한 있음")
-        print(f"임베딩 차원: {len(test_embedding)}")
-    else:
-        print("❌ 임베딩 응답 없음")
-        
-except Exception as e:
-    print(f"❌ Model Serving 권한 없음: {e}")
-```
-
----
-
-## 🚨 문제 해결
-
-### 일반적인 문제들
-
-#### 1. "Authentication failed" 오류
-
-**원인**: Personal Access Token 문제
-**해결책**:
-- 토큰 재생성 및 교체
-- 토큰 만료 확인
-- 워크스페이스 URL 정확성 확인
-
-```bash
-# 설정 초기화
-# Ctrl+Shift+P → "Databricks: Configure Workspace"
-```
-
-#### 2. 클러스터 연결 실패
-
-**원인**: 클러스터 상태 또는 권한 문제
-**해결책**:
-- Databricks UI에서 클러스터 상태 확인
-- 클러스터 재시작
-- 권한 설정 확인
-
-#### 3. "Spark session not found" 오류
-
-**원인**: 클러스터 연결 문제
-**해결책**:
-```python
-# 수동으로 Spark 세션 재생성
-from pyspark.sql import SparkSession
-spark = SparkSession.builder.appName("ManualRestart").getOrCreate()
-```
-
-#### 4. 라이브러리 import 오류
-
-**원인**: 필요한 패키지가 클러스터에 설치되지 않음
-**해결책**:
-- 클러스터 라이브러리 탭에서 패키지 설치 확인
-- 클러스터 재시작 후 재시도
-
-### 네트워크 관련 문제
-
-#### 회사 방화벽 환경
-
-```bash
-# 프록시 설정이 필요한 경우
-export HTTP_PROXY=http://proxy.company.com:8080
-export HTTPS_PROXY=http://proxy.company.com:8080
-```
-
-#### VPN 연결 문제
-
-- VPN 연결 확인
-- DNS 설정 확인
-- 방화벽 예외 설정
 
 ### 성능 최적화
 
-#### 클러스터 리소스 부족
+#### 클러스터 설정 조정
 
-**증상**: 메모리 부족, 느린 응답
-**해결책**:
-- 워커 노드 수 증가
-- 노드 타입 업그레이드
-- Auto Scaling 활성화
+- **Driver**: Standard_DS4_v2 (28GB RAM)
+- **Workers**: 2-4개 (병렬 처리용)
+- **Auto-scaling**: Enable
 
-#### 네트워크 지연
+#### 캐싱 활성화
 
-**증상**: 느린 연결, 타임아웃
-**해결책**:
-- 지역별 워크스페이스 선택
-- 클러스터 지역 확인
-- 네트워크 대역폭 확인
+```python
+# Spark SQL 결과 캐싱
+spark.conf.set("spark.sql.adaptive.enabled", "true")
+spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
+```
+
+## 🚨 문제 해결
+
+### 자주 발생하는 문제들
+
+#### 1. Foundation Models 연결 실패
+
+```python
+# 해결방법:
+# 1. Workspace에서 Foundation Models 활성화 확인
+# 2. 클러스터 재시작
+# 3. OpenAI API 대안 사용
+```
+
+#### 2. 메모리 부족 오류
+
+```python
+# 해결방법:
+# 1. 클러스터 노드 타입 업그레이드
+# 2. 데이터 샘플링 크기 조정
+# 3. 쿼리 LIMIT 추가
+```
+
+#### 3. 라이브러리 설치 실패
+
+```python
+# 해결방법:
+%pip install --upgrade pip
+%pip install -r requirements.txt --force-reinstall
+dbutils.library.restartPython()
+```
+
+#### 4. SQL 실행 권한 오류
+
+```python
+# 해결방법:
+# 1. Workspace 관리자에게 권한 요청
+# 2. Unity Catalog 설정 확인
+# 3. 클러스터 액세스 모드 확인
+```
+
+### 로그 및 디버깅
+
+#### 로그 레벨 설정
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)
+
+# Spark 로그 레벨 조정
+spark.sparkContext.setLogLevel("WARN")
+```
+
+#### 상세 오류 추적
+
+```python
+# 노트북에서 상세 오류 정보 활성화
+import traceback
+
+try:
+    # 문제가 되는 코드
+    pass
+except Exception as e:
+    print(f"오류: {str(e)}")
+    traceback.print_exc()
+```
+
+## 📊 검증 체크리스트
+
+설치가 완료되면 다음 항목들을 확인하세요:
+
+### 환경 검증
+
+- [ ] Databricks 클러스터 정상 실행
+- [ ] Python 라이브러리 모두 설치됨
+- [ ] Spark 세션 정상 초기화
+
+### 데이터 검증
+
+- [ ] northwind 데이터베이스 생성됨
+- [ ] 8개 테이블 모두 생성됨 (customers, products, orders 등)
+- [ ] 샘플 데이터 정상 로드됨
+- [ ] 기본 SQL 쿼리 실행 가능
+
+### AI 모델 검증
+
+- [ ] Databricks Foundation Models 연결됨
+- [ ] LLM 응답 테스트 통과
+- [ ] 임베딩 모델 초기화됨
+
+### Agent 기능 검증
+
+- [ ] LangChain Agent 초기화됨
+- [ ] 4개 Function Tools 모두 동작
+- [ ] 자연어 → SQL 변환 성공
+- [ ] SQL 실행 및 결과 분석 완료
+
+### 테스트 검증
+
+- [ ] 기본 테스트 케이스 통과
+- [ ] 대화형 데모 정상 동작
+- [ ] 고급 기능 테스트 완료
+
+## � 다음 단계
+
+설치가 완료되면:
+
+1. **📚 사용법 학습**: [usage-guide.md](usage-guide.md) 참조
+2. **🏗️ 아키텍처 이해**: [architecture-guide.md](architecture-guide.md) 참조
+3. **💻 코드 분석**: [implementation-guide.md](implementation-guide.md) 참조
+4. **🚀 프로덕션 배포**: 웹 API 및 UI 개발 고려
+
+## 📞 지원 및 문의
+
+설치 중 문제가 발생하면:
+
+- 📖 **문서 참조**: [troubleshooting-guide.md](troubleshooting-guide.md)
+- 🐛 **이슈 리포트**: [GitHub Issues](https://github.com/your-repo/issues)
+- 💬 **커뮤니티**: [GitHub Discussions](https://github.com/your-repo/discussions)
 
 ---
 
-## 📚 추가 리소스
+**🎉 설치 완료 후 첫 번째 질문을 시도해보세요!**
 
-### 공식 문서
-- [Databricks VS Code Extension 가이드](https://docs.databricks.com/dev-tools/vscode-ext/index.html)
-- [Vector Search 문서](https://docs.databricks.com/generative-ai/vector-search.html)
-- [Foundation Model APIs](https://docs.databricks.com/machine-learning/foundation-models/)
-
-### 커뮤니티
-- [Databricks Community Forum](https://community.databricks.com/)
-- [Stack Overflow - Databricks 태그](https://stackoverflow.com/questions/tagged/databricks)
-
-### 학습 자료
-- [Databricks Academy](https://academy.databricks.com/)
-- [Generative AI 무료 코스](https://www.databricks.com/learn/training/generative-ai)
-
----
-
-## ✅ 설정 완료 체크리스트
-
-설정이 완료되면 다음 항목들을 확인하세요:
-
-- [ ] VS Code 및 Databricks Extension 설치 완료
-- [ ] Personal Access Token 생성 및 설정
-- [ ] 워크스페이스 연결 성공
-- [ ] 클러스터 생성 및 연결 완료
-- [ ] 필요한 라이브러리 설치 완료
-- [ ] 프로젝트 폴더 구조 생성
-- [ ] 기본 연결 테스트 성공
-- [ ] Vector Search 권한 확인
-- [ ] Model Serving 권한 확인
-- [ ] 샘플 노트북 실행 가능
-
-모든 항목이 체크되면 **RAG 시스템 구축**을 시작할 준비가 완료된 것입니다! 🎉
-
-다음 단계에서는 메인 노트북 `rag_app_on_vm.ipynb`를 실행하여 실제 RAG 시스템을 구축해보세요.
+```python
+# 예시: "가장 비싼 상품 5개를 보여주세요"
+response = text_to_sql_agent.query("가장 비싼 상품 5개를 보여주세요")
+print(response)
+```
